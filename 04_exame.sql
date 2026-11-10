@@ -1,0 +1,57 @@
+USE Universidade;
+GO
+
+CREATE PROCEDURE sp_LancaExame
+(
+    @MATRICULA INT,
+    @CURSO CHAR(3),
+    @MATERIA CHAR(3),
+    @PERLETIVO INT,
+    @NOTAEXAME FLOAT
+)
+AS
+BEGIN
+    IF @NOTAEXAME < 0 OR @NOTAEXAME > 10
+    BEGIN
+        RAISERROR('A nota do exame deve ser entre 0 e 10.', 16, 1);
+        RETURN;
+    END
+
+    IF NOT EXISTS (SELECT 1 FROM MATRICULA
+                   WHERE MATRICULA = @MATRICULA AND CURSO = @CURSO
+                     AND MATERIA = @MATERIA AND PERLETIVO = @PERLETIVO
+                     AND RESULTADO = 'EXAME')
+    BEGIN
+        RAISERROR('Esse aluno nao esta em EXAME nessa materia.', 16, 1);
+        RETURN;
+    END
+
+    UPDATE MATRICULA
+    SET NOTAEXAME = @NOTAEXAME,
+        MEDIAFINAL = (MEDIA + @NOTAEXAME) / 2,
+        RESULTADO = CASE WHEN (MEDIA + @NOTAEXAME) / 2 >= 5
+                         THEN 'APROVADO'
+                         ELSE 'REPROVADO' END
+    WHERE MATRICULA = @MATRICULA AND CURSO = @CURSO
+      AND MATERIA = @MATERIA AND PERLETIVO = @PERLETIVO;
+
+    SELECT * FROM MATRICULA
+    WHERE MATRICULA = @MATRICULA AND CURSO = @CURSO
+      AND MATERIA = @MATERIA AND PERLETIVO = @PERLETIVO;
+END
+GO
+
+EXEC sp_LancaExame 2, 'ENG', 'BDA', 2025, 7;
+EXEC sp_CadastraNotas 5, 'ENG', 'BDA', 2025, 4, 0, 1;
+EXEC sp_CadastraNotas 5, 'ENG', 'BDA', 2025, 4, 0, 2;
+EXEC sp_CadastraNotas 5, 'ENG', 'BDA', 2025, 4, 0, 3;
+EXEC sp_CadastraNotas 5, 'ENG', 'BDA', 2025, 4, 0, 4;
+EXEC sp_LancaExame 5, 'ENG', 'BDA', 2025, 3;
+GO
+
+SELECT A.NOME AS ALUNO, M.MEDIA, M.NOTAEXAME, M.MEDIAFINAL, M.RESULTADO
+FROM MATRICULA AS M
+INNER JOIN ALUNOS AS A ON A.MATRICULA = M.MATRICULA
+WHERE M.MATERIA = 'BDA'
+ORDER BY A.MATRICULA;
+GO
